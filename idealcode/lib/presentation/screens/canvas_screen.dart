@@ -106,13 +106,13 @@ class CanvasScreen extends ConsumerWidget {
                     size: const Size.infinite,
                     painter: ConnectionLinePainter(files: state.project.files),
                   ),
-                  ...state.project.files.map(
-                    (file) => CanvasItemWidget(
+                  ...state.project.files.map((file) {
+                    return CanvasItemWidget(
                       key: ValueKey<String>(file.id),
                       file: file,
                       projectId: projectId,
-                    ),
-                  ),
+                    );
+                  }).toList(),
                 ],
               ),
             ),
