@@ -108,7 +108,7 @@ class CanvasScreen extends ConsumerWidget {
                   ),
                   ...state.project.files.map(
                     (file) => CanvasItemWidget(
-                      key: ValueKey(file.id),
+                      key: ValueKey<String>(file.id),
                       file: file,
                       projectId: projectId,
                     ),
