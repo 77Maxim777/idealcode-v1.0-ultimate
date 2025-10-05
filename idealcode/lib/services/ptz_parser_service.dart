@@ -5,8 +5,8 @@ import '../utils/result.dart';
 
 class PtzParserService {
   static final _fileRegex = RegExp(r'^\d+\.\s*Файл:\s*(.+)$', multiLine: true);
-static final _annotationRegex = RegExp(r' Аннотация :\s*(.+?)(?=\n Связи :|\n\d+\.|\Z)', multiLine: true);
-static final _dependenciesRegex = RegExp(r' Связи :\s*(.+?)(?=\n\d+\.|\Z)', multiLine: true);
+  static final _annotationRegex = RegExp(r'Аннотация:\s*(.+?)(?=\nСвязи:|\n\d+\.|$)', multiLine: true);
+  static final _dependenciesRegex = RegExp(r'Связи:\s*(.+?)(?=\n\d+\.|$)', multiLine: true);
   
   static Result<List<ProjectFile>, String> parsePTZ(String ptzText) {
     try {
@@ -17,12 +17,15 @@ static final _dependenciesRegex = RegExp(r' Связи :\s*(.+?)(?=\n\d+\.|\Z)',
 
       final List<ProjectFile> files = [];
       for (final match in fileMatches) {
-        final path = match.group(1)!;
-        final annotationMatch = _annotationRegex.firstMatch(ptzText.substring(match.start));
-        final annotation = annotationMatch?.group(1) ?? '';
+        final path = match.group(1)?.trim() ?? '';
+        if (path.isEmpty) continue;
         
-        final dependenciesMatch = _dependenciesRegex.firstMatch(ptzText.substring(match.start));
-        final dependenciesText = dependenciesMatch?.group(1) ?? '';
+        // Ищем аннотацию и связи в тексте после текущей позиции
+        final annotationMatch = _annotationRegex.firstMatch(ptzText.substring(match.end));
+        final annotation = annotationMatch?.group(1)?.trim() ?? '';
+        
+        final dependenciesMatch = _dependenciesRegex.firstMatch(ptzText.substring(match.end));
+        final dependenciesText = dependenciesMatch?.group(1)?.trim() ?? '';
         final dependencies = _parseDependencies(dependenciesText, files);
 
         final file = ProjectFile(
@@ -41,23 +44,21 @@ static final _dependenciesRegex = RegExp(r' Связи :\s*(.+?)(?=\n\d+\.|\Z)',
   }
 
   static List<String> _parseDependencies(String text, List<ProjectFile> existingFiles) {
-    // Improved dependency parsing
     final List<String> dependencies = [];
     
-    // Try to find file numbers in the text
-    final numberMatches = RegExp(r'(\d+)').allMatches(text);
+    // Проверяем, что текст не пустой
+    if (text.isEmpty) return dependencies;
+    
+    // Ищем номера файлов (1., 2., и т.д.)
+    final numberMatches = RegExp(r'(\d+)\.').allMatches(text);
     for (final match in numberMatches) {
       final fileNumber = int.tryParse(match.group(1)!);
       if (fileNumber != null && fileNumber > 0 && fileNumber <= existingFiles.length) {
-        // File numbers are 1-based in PTZ, but 0-based in our list
-        final index = fileNumber - 1;
-        if (index < existingFiles.length) {
-          dependencies.add(existingFiles[index].id);
-        }
+        dependencies.add(existingFiles[fileNumber - 1].id);
       }
     }
     
-    // Also try to find file paths directly
+    // Ищем пути к файлам
     final pathMatches = RegExp(r'([a-zA-Z0-9_\-/]+\.[a-zA-Z0-9]+)').allMatches(text);
     for (final match in pathMatches) {
       final path = match.group(1)!;
@@ -71,9 +72,11 @@ static final _dependenciesRegex = RegExp(r' Связи :\s*(.+?)(?=\n\d+\.|\Z)',
   }
 
   static FileType _getFileType(String path) {
-    if (path.endsWith('.yaml') || path.endsWith('.yml') || path.endsWith('.json')) return FileType.config;
-    if (path.endsWith('.dart') || path.endsWith('.kt') || path.endsWith('.java') || path.endsWith('.xml')) return FileType.code;
-    if (path.endsWith('.md') || path.endsWith('.txt')) return FileType.documentation;
+    final ext = path.split('.').last.toLowerCase();
+    
+    if (ext == 'yaml' || ext == 'yml' || ext == 'json') return FileType.config;
+    if (ext == 'dart' || ext == 'kt' || ext == 'java' || ext == 'xml') return FileType.code;
+    if (ext == 'md' || ext == 'txt') return FileType.documentation;
     return FileType.resource;
   }
 }
