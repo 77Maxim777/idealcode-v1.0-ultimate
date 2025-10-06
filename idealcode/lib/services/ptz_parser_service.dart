@@ -82,3 +82,4 @@ class PtzParserService {
     return FileType.resource;
   }
 }
+
