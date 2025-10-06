@@ -103,13 +103,15 @@ class CanvasScreen extends ConsumerWidget {
               maxScale: 2.0,
               child: SizedBox(
                 width: 2000,
-                height: 2000,
+                height: 2000, // Строка 106
                 child: Stack(
                   children: [
+                    // Убедитесь, что ConnectionLinePainter правильно определен
                     CustomPaint(
                       size: const Size.infinite,
                       painter: ConnectionLinePainter(files: state.project.files),
                     ),
+                    // Spread оператор - может быть проблема здесь
                     ...state.project.files.map((file) {
                       return CanvasItemWidget(
                         key: ValueKey(file.id),
