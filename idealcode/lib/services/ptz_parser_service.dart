@@ -4,16 +4,17 @@ import '../data/models/project_file_model.dart';
 import '../utils/result.dart';
 
 class PtzParserService {
-  // Исправлено: ключевые слова заменены на английские для универсальности
   static final _fileRegex = RegExp(r'^\d+\.\s*File:\s*(.+)$', multiLine: true);
-  static final _annotationRegex = RegExp(r'Annotation:\s*(.+?)(?=\nDependencies:|\n\d+\.|$)', multiLine: true, dotAll: true);
-  static final _dependenciesRegex = RegExp(r'Dependencies:\s*(.+?)(?=\n\d+\.|$)', multiLine: true, dotAll: true);
+  static final _annotationRegex = RegExp(r'Annotation:\s*(.+?)(?=\nDependencies:|\n\d+\.|$)', multiLine: true);
+  static final _dependenciesRegex = RegExp(r'Dependencies:\s*(.+?)(?=\n\d+\.|$)', multiLine: true);
   
   static Result<List<ProjectFile>, String> parsePTZ(String ptzText) {
     try {
       final fileMatches = _fileRegex.allMatches(ptzText).toList();
       if (fileMatches.isEmpty) {
-        return const Result.error('No file definitions found in PTZ. Make sure to use "File:" keyword.');
+        return const Result.error(
+          'No file definitions found in PTZ. Make sure to use "File:" keyword.'
+        );
       }
 
       final List<ProjectFile> files = [];
@@ -50,7 +51,7 @@ class PtzParserService {
     // Проверяем, что текст не пустой
     if (text.isEmpty) return dependencies;
     
-    // Ищем номера файлов (1., 2., и т.д.) - улучшенная логика
+    // Ищем номера файлов (1., 2., и т.д.)
     final numberMatches = RegExp(r'(\d+)\.').allMatches(text);
     for (final match in numberMatches) {
       final fileNumber = int.tryParse(match.group(1)!);
