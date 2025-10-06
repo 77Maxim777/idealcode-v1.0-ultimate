@@ -76,9 +76,15 @@ class PtzParserService {
   static FileType _getFileType(String path) {
     final ext = path.split('.').last.toLowerCase();
     
-    if (ext == 'yaml' || ext == 'yml' || ext == 'json') return FileType.config;
-    if (ext == 'dart' || ext == 'kt' || ext == 'java' || ext == 'xml') return FileType.code;
-    if (ext == 'md' || ext == 'txt') return FileType.documentation;
+    if (ext == 'yaml' || ext == 'yml' || ext == 'json') {
+      return FileType.config;
+    }
+    if (ext == 'dart' || ext == 'kt' || ext == 'java' || ext == 'xml') {
+      return FileType.code;
+    }
+    if (ext == 'md' || ext == 'txt') {
+      return FileType.documentation;
+    }
     return FileType.resource;
   }
 }
