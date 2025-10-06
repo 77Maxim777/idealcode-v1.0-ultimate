@@ -1,50 +1,67 @@
 name: idealcode
-description: IdealCode Mobile Creative Studio.
+description: IdealCode Mobile Creative Studio - AI-powered development platform
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
   sdk: '>=3.1.0 <4.0.0'
-  flutter: "3.19.6"
+  flutter: ">=3.16.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-
+  
+  # UI
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  
   # State Management
   flutter_riverpod: ^2.5.1
-
+  
   # Navigation
-  go_router: ^13.2.0
-
+  go_router: ^14.2.7
+  
   # Storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  flutter_secure_storage: ^9.0.0
-
-  # UI & Utils
+  flutter_secure_storage: ^9.2.2
+  
+  # UI & Code
   flutter_highlight: ^0.7.0
-  url_launcher: ^6.2.5
-  collection: ^1.18.0
-
-  # GitHub API
-  github: ^9.24.0
-
-  # Code Generation
+  url_launcher: ^6.3.0
+  path_provider: ^2.1.4
+  share_plus: ^10.0.2
+  
+  # GitHub Integration
+  github: ^9.69.0
+  
+  # JSON & Code Generation
   freezed_annotation: ^2.4.1
-  json_annotation: ^4.8.1
+  json_annotation: ^4.9.0
+  collection: ^1.19.0
+  
+  # Utilities
+  intl: ^0.19.0
+  device_info_plus: ^10.1.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
-
+  flutter_lints: ^4.0.0
+  
   # Code Generation
-  build_runner: ^2.4.9
-  freezed: ^2.4.7
-  json_serializable: ^6.7.1
+  build_runner: ^2.4.12
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
   hive_generator: ^2.0.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+  fonts:
+    - family: RobotoMono
+      fonts:
+        - asset: assets/fonts/RobotoMono-Regular.ttf
+        - asset: assets/fonts/RobotoMono-Bold.ttf
+          weight: 700
