@@ -22,7 +22,6 @@ class PtzParserService {
         final path = match.group(1)?.trim() ?? '';
         if (path.isEmpty) continue;
         
-        // Ищем аннотацию и связи в тексте после текущей позиции
         final annotationMatch = _annotationRegex.firstMatch(ptzText.substring(match.end));
         final annotation = annotationMatch?.group(1)?.trim() ?? '';
         
@@ -48,10 +47,8 @@ class PtzParserService {
   static List<String> _parseDependencies(String text, List<ProjectFile> existingFiles) {
     final List<String> dependencies = [];
     
-    // Проверяем, что текст не пустой
     if (text.isEmpty) return dependencies;
     
-    // Ищем номера файлов (1., 2., и т.д.)
     final numberMatches = RegExp(r'(\d+)\.').allMatches(text);
     for (final match in numberMatches) {
       final fileNumber = int.tryParse(match.group(1)!);
@@ -60,7 +57,6 @@ class PtzParserService {
       }
     }
     
-    // Ищем пути к файлам
     final pathMatches = RegExp(r'([a-zA-Z0-9_\-/]+\.[a-zA-Z0-9]+)').allMatches(text);
     for (final match in pathMatches) {
       final path = match.group(1)!;
