@@ -5,8 +5,9 @@ import '../utils/result.dart';
 
 class PtzParserService {
   static final _fileRegex = RegExp(r'^\d+\.\s*File:\s*(.+)$', multiLine: true);
-  static final _annotationRegex = RegExp(r'Annotation:\s*(.+?)(?=\nDependencies:|\n\d+\.|$)', multiLine: true, dotAll: true);
-  static final _dependenciesRegex = RegExp(r'Dependencies:\s*(.+?)(?=\n\d+\.|$)', multiLine: true, dotAll: true);
+  // Исправленные регулярные выражения:
+  static final _annotationRegex = RegExp(r'(?s)Annotation:\s*(.+?)(?=\nDependencies:|\n\d+\.|$)');
+  static final _dependenciesRegex = RegExp(r'(?s)Dependencies:\s*(.+?)(?=\n\d+\.|$)');
   
   static Result<List<ProjectFile>, String> parsePTZ(String ptzText) {
     try {
@@ -82,4 +83,3 @@ class PtzParserService {
     return FileType.resource;
   }
 }
-
