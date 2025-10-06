@@ -1,91 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'core/constants/app_constants.dart';
-import 'presentation/screens/canvas_screen.dart';
-import 'presentation/screens/code_editor_screen.dart';
-import 'presentation/screens/github_export_screen.dart';
-import 'presentation/screens/project_create_screen.dart';
-import 'presentation/screens/project_list_screen.dart';
-import 'presentation/screens/ptz_import_screen.dart';
-import 'presentation/screens/settings_screen.dart';
-import 'presentation/screens/tz_editor_screen.dart';
-import 'theme/app_theme.dart';
+import 'core/router/app_router.dart';
+import 'core/theme/app_theme.dart';
+import 'presentation/screens/splash_screen.dart';
 
 class App extends StatelessWidget {
-  App({super.key});
-
-  final _router = GoRouter(
-    initialLocation: AppRoutes.home,
-    routes: [
-      GoRoute(
-        path: AppRoutes.home,
-        builder: (context, state) => const ProjectListScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.create,
-        builder: (context, state) => const ProjectCreateScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.project,
-        builder: (context, state) {
-          final projectId = state.pathParameters['id']!;
-          return CanvasScreen(projectId: projectId);
-        },
-        routes: [
-          GoRoute(
-            path: AppRoutes.editor,
-            builder: (context, state) {
-              final projectId = state.pathParameters['id']!;
-              final fileId = state.pathParameters['fileId']!;
-              return CodeEditorScreen(
-                projectId: projectId,
-                fileId: fileId,
-              );
-            },
-          ),
-          GoRoute(
-            path: '/project/:id/tz',
-            builder: (context, state) {
-              final projectId = state.pathParameters['id']!;
-              return TzEditorScreen(projectId: projectId);
-            },
-          ),
-          GoRoute(
-            path: '/project/:id/import-ptz',
-            builder: (context, state) {
-              final projectId = state.pathParameters['id']!;
-              return PtzImportScreen(projectId: projectId);
-            },
-          ),
-          GoRoute(
-            path: '/project/:id/github-export',
-            builder: (context, state) {
-              final projectId = state.pathParameters['id']!;
-              return GithubExportScreen(projectId: projectId);
-            },
-          ),
-        ],
-      ),
-      GoRoute(
-        path: AppRoutes.settings,
-        builder: (context, state) => const SettingsScreen(),
-      ),
-    ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(
-        child: Text('Page not found: ${state.uri}'),
-      ),
-    ),
-  );
+  const App({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final GoRouter router = AppRouter.router;
+    
     return MaterialApp.router(
-      title: 'IdealCode',
+      title: 'IdealCode - Creative Studio',
       theme: AppTheme.lightTheme,
-      routerConfig: _router,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      routerConfig: router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+          child: child!,
+        );
+      },
     );
   }
 }
