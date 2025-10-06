@@ -8,21 +8,34 @@ import 'data/models/project_file_model.dart';
 import 'data/models/project_model.dart';
 import 'services/storage_service.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  
   // Initialize Hive
-  await Hive.initFlutter();
+  await _initHive();
   
-  // Register adapters
-  registerHiveAdapters();
-  
-  // Open boxes
-  await Hive.openBox<Project>(StorageService.projectsBoxName);
-
   runApp(
     const ProviderScope(
       child: App(),
     ),
   );
+}
+
+Future<void> _initHive() async {
+  try {
+    await Hive.initFlutter();
+    
+    // Register all adapters
+    Hive.registerAdapter(ProjectAdapter());
+    Hive.registerAdapter(ProjectFileAdapter());
+    Hive.registerAdapter(ProjectStatusAdapter());
+    Hive.registerAdapter(FileStatusAdapter());
+    Hive.registerAdapter(FileTypeAdapter());
+    
+    // Open boxes
+    await Hive.openBox<Project>(StorageService.projectsBoxName);
+    await Hive.openBox<String>(StorageService.settingsBoxName);
+  } catch (e) {
+    debugPrint('Error initializing Hive: $e');
+  }
 }
