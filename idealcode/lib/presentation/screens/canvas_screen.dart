@@ -64,80 +64,85 @@ class CanvasScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: projectState.when(
-        data: (state) {
-          if (state.project.files.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.dashboard_customize,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No files in this project yet.',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.go('/project/$projectId/import-ptz');
-                    },
-                    child: const Text('Import PTZ'),
-                  ),
-                ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(projectProvider(projectId));
+        },
+        child: projectState.when(
+          data: (state) {
+            if (state.project.files.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.dashboard_customize,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No files in this project yet.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.go('/project/$projectId/import-ptz');
+                      },
+                      child: const Text('Import PTZ'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return InteractiveViewer(
+              boundaryMargin: const EdgeInsets.all(100),
+              minScale: 0.5,
+              maxScale: 2.0,
+              child: SizedBox(
+                width: 2000,
+                height: 2000,
+                child: Stack(
+                  children: [
+                    CustomPaint(
+                      size: const Size.infinite,
+                      painter: ConnectionLinePainter(files: state.project.files),
+                    ),
+                    ...state.project.files.map((file) {
+                      return CanvasItemWidget(
+                        key: ValueKey(file.id),
+                        file: file,
+                        projectId: projectId,
+                      );
+                    }).toList(),
+                  ],
+                ),
               ),
             );
-          }
-
-          return InteractiveViewer(
-            boundaryMargin: const EdgeInsets.all(100),
-            minScale: 0.5,
-            maxScale: 2.0,
-            child: SizedBox(
-              width: 2000,
-              height: 2000,
-              child: Stack(
-                children: [
-                  CustomPaint(
-                    size: const Size.infinite,
-                    painter: ConnectionLinePainter(files: state.project.files),
-                  ),
-                  ...state.project.files.map((file) {
-                    return CanvasItemWidget(
-                      key: ValueKey<String>(file.id),
-                      file: file,
-                      projectId: projectId,
-                    );
-                  }).toList(),
-                ],
-              ),
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 16),
+                Text('Error loading project: $error'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    ref.invalidate(projectProvider(projectId));
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red,
-              ),
-              const SizedBox(height: 16),
-              Text('Error: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  ref.invalidate(projectProvider(projectId));
-                },
-                child: const Text('Retry'),
-              ),
-            ],
           ),
         ),
       ),
