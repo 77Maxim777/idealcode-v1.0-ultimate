@@ -1,7 +1,9 @@
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 
 import '../data/models/project_file_model.dart';
 import '../utils/result.dart';
+import '../utils/coordinate_calculator.dart';
 import 'dart:math' as math;
 
 class ParseError {
@@ -100,7 +102,7 @@ class PtzParserService {
 
         // Создание файла
         final fileId = '${fileNumber}_$path'.replaceAll('/', '_');
-        final fileType = ProjectFile._getTypeFromPath(path);
+        final fileType = _getTypeFromPath(path);
 
         final projectFile = ProjectFile(
           id: fileId,
@@ -191,13 +193,15 @@ class PtzParserService {
     }
 
     // Удаляем дубликаты и сортируем
-    return dependencies.toSet().toList()
-        ..sort((a, b) => a.compareTo(b));
+    final result = dependencies.toSet().toList()
+      ..sort((a, b) => a.compareTo(b));
 
     // Проверка на само-зависимость
-    if (dependencies.any((dep) => dep == existingFiles.last.id)) {
-      dependencies.remove(existingFiles.last.id);
+    if (result.any((dep) => dep == existingFiles.last.id)) {
+      result.remove(existingFiles.last.id);
     }
+
+    return result;
   }
 
   /// Поиск конца секции
@@ -205,7 +209,7 @@ class PtzParserService {
     final remainingText = text.substring(start);
     final nextHeader = RegExp(r'\n\d+\.\s*Файл:').firstMatch(remainingText);
     return nextHeader != null 
-        ? start + nextHeader.start + start 
+        ? start + nextHeader.start
         : text.length;
   }
 
@@ -305,4 +309,16 @@ class PtzParserService {
       (files) => debugPrint('Test success: ${files.length} files parsed'),
     );
   }
+}
+
+// Внешняя функция для определения типа файла по пути
+FileType _getTypeFromPath(String path) {
+  final extension = path.split('.').last.toLowerCase();
+  
+  if (FileExtensions.configFiles.contains('.$extension')) return FileType.config;
+  if (FileExtensions.codeFiles.contains('.$extension')) return FileType.code;
+  if (FileExtensions.resourceFiles.contains('.$extension')) return FileType.resource;
+  if (FileExtensions.docFiles.contains('.$extension')) return FileType.documentation;
+  
+  return FileType.resource;
 }
