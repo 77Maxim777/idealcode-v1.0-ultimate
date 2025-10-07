@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 
 import '../data/models/project_file_model.dart';
 import '../utils/result.dart';
-import '../utils/coordinate_calculator.dart';
 import 'dart:math' as math;
 
 class ParseError {
@@ -14,9 +13,12 @@ class ParseError {
   ParseError(this.message, {this.lineNumber = -1, this.snippet = ''});
 
   @override
-  String toString() => lineNumber > 0 
-      ? 'ParseError at line $lineNumber: $message\nSnippet: $snippet'
-      : 'ParseError: $message';
+  String toString() {
+    if (lineNumber > 0) {
+      return 'ParseError at line $lineNumber: $message\nSnippet: $snippet';
+    }
+    return 'ParseError: $message';
+  }
 }
 
 /// Сервис для парсинга текста ПТЗ в список ProjectFile
@@ -29,14 +31,14 @@ class PtzParserService {
   );
 
   static final RegExp _annotationRegex = RegExp(
-    r'Аннотация:\s*(.+?)(?=\nСвязи:|\n\d+\.|(?:\n\n)|$)',
+    r'Аннотация:\s*(.+?)(?=\nСвязи:|\n\d+\.|\n\n|$)',
     multiLine: true,
     dotAll: true,
     caseSensitive: false,
   );
 
   static final RegExp _dependenciesRegex = RegExp(
-    r'Связи:\s*(.+?)(?=\n(?:\d+\.)|\n\n|$)',
+    r'Связи:\s*(.+?)(?=\n\d+\.|\n\n|$)',
     multiLine: true,
     dotAll: true,
     caseSensitive: false,
@@ -49,7 +51,7 @@ class PtzParserService {
   static Result<List<ProjectFile>, ParseError> parsePTZ(String ptzText) {
     try {
       if (ptzText.trim().isEmpty) {
-        return Result.error(const ParseError('PTZ text is empty'));
+        return Result.error(ParseError('PTZ text is empty'));
       }
 
       // Нормализуем текст: удаляем лишние пробелы, добавляем переносы
@@ -58,7 +60,7 @@ class PtzParserService {
       final matches = _fileHeaderRegex.allMatches(normalizedText);
 
       if (matches.isEmpty) {
-        return Result.error(const ParseError(
+        return Result.error(ParseError(
           'No file definitions found. Expected format: "1. Файл: path/to/file.ext"'
         ));
       }
@@ -96,8 +98,7 @@ class PtzParserService {
         final dependenciesText = dependenciesMatch?.group(1)?.trim() ?? '';
 
         // Парсинг этапов (опционально)
-        final stageMatch = RegExp(r'📂\s*ЭТАП\s*\d+:\s*(.+?)(?=\n📂|\Z)', 
-          multiLine: true, dotAll: true).firstMatch(ptzText);
+        final stageMatch = RegExp(r'📂\\s*ЭТАП\\s*\\d+:\\s*(.+?)(?=\\n📂|\\Z)').firstMatch(ptzText);
         final stage = stageMatch?.group(1)?.trim() ?? 'Unknown Stage';
 
         // Создание файла
@@ -107,7 +108,7 @@ class PtzParserService {
         final projectFile = ProjectFile(
           id: fileId,
           path: path,
-          annotation: '$stage: $annotation',
+          annotation: annotation.isNotEmpty ? '$stage: $annotation' : stage,
           type: fileType,
           status: FileStatus.empty,
           dependencies: _parseDependencies(dependenciesText, files, fileNumber),
@@ -124,7 +125,7 @@ class PtzParserService {
       }
 
       // Расчет позиций
-      final positionedFiles = CoordinateCalculator.calculateGridPositions(files);
+      final positionedFiles = _calculateGridPositions(files);
 
       // Логируем парсинг для отладки
       debugPrint('Parsed ${files.length} files from PTZ');
@@ -142,8 +143,8 @@ class PtzParserService {
   /// Нормализация текста ПТЗ
   static String _normalizeText(String text) {
     return text
-        .replaceAll(RegExp(r'\r\n?'), '\n') // Унифицируем переносы
-        .replaceAll(RegExp(r'\s+'), ' ') // Убираем лишние пробелы
+        .replaceAll(RegExp(r'\r\n?'), '\n')
+        .replaceAll(RegExp(r'[ \t]+'), ' ')
         .trim();
   }
 
@@ -151,8 +152,8 @@ class PtzParserService {
   static String _cleanPath(String rawPath) {
     return rawPath
         .trim()
-        .replaceAll(RegExp(r'["\'`]'), '') // Убираем кавычки
-        .replaceAll(RegExp(r'\s+'), '_') // Пробелы в подчеркивания
+        .replaceAll(RegExp(r'["\'`]'), '')
+        .replaceAll(RegExp(r'\\s+'), '_')
         .toLowerCase();
   }
 
@@ -193,12 +194,12 @@ class PtzParserService {
     }
 
     // Удаляем дубликаты и сортируем
-    final result = dependencies.toSet().toList()
-      ..sort((a, b) => a.compareTo(b));
+    final result = dependencies.toSet().toList()..sort();
 
     // Проверка на само-зависимость
-    if (result.any((dep) => dep == existingFiles.last.id)) {
-      result.remove(existingFiles.last.id);
+    final currentFile = existingFiles.isNotEmpty ? existingFiles.last : null;
+    if (currentFile != null && result.contains(currentFile.id)) {
+      result.remove(currentFile.id);
     }
 
     return result;
@@ -208,9 +209,10 @@ class PtzParserService {
   static int _findNextSectionEnd(String text, int start) {
     final remainingText = text.substring(start);
     final nextHeader = RegExp(r'\n\d+\.\s*Файл:').firstMatch(remainingText);
-    return nextHeader != null 
-        ? start + nextHeader.start
-        : text.length;
+    if (nextHeader != null) {
+      return start + nextHeader.start;
+    }
+    return text.length;
   }
 
   /// Получение номера строки для ошибки
@@ -225,11 +227,11 @@ class PtzParserService {
     final cycles = <String>[];
 
     for (final file in files) {
-      if (visited.contains(file.id)) continue;
-
-      final cycle = _detectCycleUtil(file, files, visited, recStack);
-      if (cycle.isNotEmpty) {
-        cycles.addAll(cycle);
+      if (!visited.contains(file.id)) {
+        final cycle = _detectCycleUtil(file, files, visited, recStack, []);
+        if (cycle.isNotEmpty) {
+          cycles.addAll(cycle);
+        }
       }
     }
 
@@ -241,25 +243,28 @@ class PtzParserService {
     List<ProjectFile> allFiles,
     Set<String> visited,
     Set<String> recStack,
+    List<String> currentPath,
   ) {
     visited.add(file.id);
     recStack.add(file.id);
+    currentPath.add(file.id);
 
     for (final depId in file.dependencies) {
       final depFile = allFiles.firstWhereOrNull((f) => f.id == depId);
       if (depFile == null) continue;
 
       if (!visited.contains(depFile.id)) {
-        final cycle = _detectCycleUtil(depFile, allFiles, visited, recStack);
+        final cycle = _detectCycleUtil(depFile, allFiles, visited, recStack, currentPath);
         if (cycle.isNotEmpty) return cycle;
       } else if (recStack.contains(depFile.id)) {
         // Цикл найден
-        final cyclePath = recStack.where((id) => id == depFile.id || file.dependencies.contains(id)).toList();
-        return cyclePath;
+        final cycleStart = currentPath.indexOf(depFile.id);
+        return currentPath.sublist(cycleStart);
       }
     }
 
     recStack.remove(file.id);
+    currentPath.removeLast();
     return [];
   }
 
@@ -268,21 +273,38 @@ class PtzParserService {
     final normalized = _normalizeText(ptzText);
 
     if (normalized.length < 50) {
-      return Result.error(const ParseError('PTZ too short. Minimum expected length: 50 chars'));
+      return Result.error(ParseError('PTZ too short. Minimum expected length: 50 chars'));
     }
 
     final fileCount = _fileHeaderRegex.allMatches(normalized).length;
-    if (fileCount < 1 || fileCount > 100) { // Разумные пределы
+    if (fileCount < 1 || fileCount > 100) {
       return Result.error(ParseError('Invalid number of files: $fileCount. Expected 1-100'));
     }
 
     // Проверка на ключевые слова
     if (!normalized.toLowerCase().contains('файл') || 
         !normalized.toLowerCase().contains('аннотация')) {
-      return Result.error(const ParseError('PTZ missing required sections (Файл, Аннотация)'));
+      return Result.error(ParseError('PTZ missing required sections (Файл, Аннотация)'));
     }
 
     return Result.success(normalized);
+  }
+
+  /// Простой расчет позиций для сетки
+  static List<ProjectFile> _calculateGridPositions(List<ProjectFile> files) {
+    const double itemWidth = 120.0;
+    const double itemHeight = 80.0;
+    const double spacing = 20.0;
+    const int itemsPerRow = 4;
+
+    return files.map((file, index) {
+      final row = index ~/ itemsPerRow;
+      final col = index % itemsPerRow;
+      final x = col * (itemWidth + spacing);
+      final y = row * (itemHeight + spacing);
+      
+      return file.copyWith(x: x, y: y);
+    }).toList();
   }
 
   /// Пример использования и тестирование
@@ -313,7 +335,10 @@ class PtzParserService {
 
 // Внешняя функция для определения типа файла по пути
 FileType _getTypeFromPath(String path) {
-  final extension = path.split('.').last.toLowerCase();
+  final parts = path.split('.');
+  if (parts.length < 2) return FileType.resource;
+  
+  final extension = parts.last.toLowerCase();
   
   if (FileExtensions.configFiles.contains('.$extension')) return FileType.config;
   if (FileExtensions.codeFiles.contains('.$extension')) return FileType.code;
