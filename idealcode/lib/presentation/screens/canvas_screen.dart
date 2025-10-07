@@ -53,7 +53,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                     onInteractionEnd: (details) {
                       if (details.velocity.pixelsPerSecond.distance > 0) {
                         setState(() {
-                          _scale = 1.0; // сброс масштаба на выходе
+                          _scale = 1.0;
                         });
                       }
                     },
@@ -64,7 +64,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                       child: CustomPaint(
                         painter: ConnectionLinePainter(
                           files: project.files,
-                          scale: _scale,
+                          // Убрали параметр scale, так как его нет в конструкторе
                         ),
                         child: Stack(
                           children: project.files.map((file) {
@@ -81,7 +81,6 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                       ),
                     ),
                   ),
-                  // Дополнительные UI элементы, если нужно
                   _buildScaleIndicator(),
                 ],
               );
