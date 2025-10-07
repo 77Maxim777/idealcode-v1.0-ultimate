@@ -1,61 +1,11 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_constants.dart';
 
 part 'project_file_model.freezed.dart';
 part 'project_file_model.g.dart';
-
-// Внешние функции для вычисляемых свойств
-String _getDisplayName(ProjectFile file) => file.name ?? file.path.split('/').last;
-
-String _getExtension(ProjectFile file) => file.path.split('.').last.toLowerCase();
-
-bool _getIsEmpty(ProjectFile file) => file.content.trim().isEmpty;
-
-bool _getIsConfig(ProjectFile file) => 
-    FileExtensions.configFiles.contains('.${_getExtension(file)}');
-
-bool _getIsCode(ProjectFile file) => 
-    FileExtensions.codeFiles.contains('.${_getExtension(file)}');
-
-bool _getIsResource(ProjectFile file) => 
-    FileExtensions.resourceFiles.contains('.${_getExtension(file)}');
-
-bool _getIsDocumentation(ProjectFile file) => 
-    FileExtensions.docFiles.contains('.${_getExtension(file)}');
-
-String _getFormattedSize(ProjectFile file) {
-  final size = file.size;
-  if (size == 0) return '0 B';
-  if (size < 1024) return '${size} B';
-  if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-  return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-}
-
-String _getFormattedDate(ProjectFile file) => 
-    DateFormat('MMM dd HH:mm').format(file.lastModified);
-
-String _getDisplayPath(ProjectFile file) {
-  final path = file.path;
-  if (path.length > 30) {
-    return '${path.substring(0, 15)}...${path.substring(path.length - 15)}';
-  }
-  return path;
-}
-
-FileType _getTypeFromPath(String path) {
-  final extension = path.split('.').last.toLowerCase();
-  
-  if (FileExtensions.configFiles.contains('.$extension')) return FileType.config;
-  if (FileExtensions.codeFiles.contains('.$extension')) return FileType.code;
-  if (FileExtensions.resourceFiles.contains('.$extension')) return FileType.resource;
-  if (FileExtensions.docFiles.contains('.$extension')) return FileType.documentation;
-  
-  return FileType.resource;
-}
 
 @freezed
 class ProjectFile with _$ProjectFile {
@@ -131,18 +81,43 @@ class ProjectFile with _$ProjectFile {
   }
 }
 
-// Extension для методов
+// Extension для вычисляемых свойств и методов
 extension ProjectFileExtension on ProjectFile {
-  String get displayName => _getDisplayName(this);
-  String get extension => _getExtension(this);
-  bool get isEmpty => _getIsEmpty(this);
-  bool get isConfig => _getIsConfig(this);
-  bool get isCode => _getIsCode(this);
-  bool get isResource => _getIsResource(this);
-  bool get isDocumentation => _getIsDocumentation(this);
-  String get formattedSize => _getFormattedSize(this);
-  String get formattedDate => _getFormattedDate(this);
-  String get displayPath => _getDisplayPath(this);
+  String get displayName => name ?? path.split('/').last;
+  
+  String get extension {
+    final parts = path.split('.');
+    return parts.length > 1 ? parts.last.toLowerCase() : '';
+  }
+  
+  bool get isEmpty => content.trim().isEmpty;
+  
+  bool get isConfig => FileExtensions.configFiles.contains('.$extension');
+  
+  bool get isCode => FileExtensions.codeFiles.contains('.$extension');
+  
+  bool get isResource => FileExtensions.resourceFiles.contains('.$extension');
+  
+  bool get isDocumentation => FileExtensions.docFiles.contains('.$extension');
+  
+  String get formattedSize {
+    if (size == 0) return '0 B';
+    if (size < 1024) return '$size B';
+    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
+    return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  
+  String get formattedDate {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[lastModified.month - 1]} ${lastModified.day.toString().padLeft(2, '0')} ${lastModified.hour.toString().padLeft(2, '0')}:${lastModified.minute.toString().padLeft(2, '0')}';
+  }
+  
+  String get displayPath {
+    if (path.length > 30) {
+      return '${path.substring(0, 15)}...${path.substring(path.length - 15)}';
+    }
+    return path;
+  }
   
   ProjectFile updateContent(String newContent) {
     return copyWith(
@@ -173,16 +148,39 @@ extension ProjectFileExtension on ProjectFile {
   }
 }
 
+FileType _getTypeFromPath(String path) {
+  final extension = path.split('.').last.toLowerCase();
+  
+  if (FileExtensions.configFiles.contains('.$extension')) return FileType.config;
+  if (FileExtensions.codeFiles.contains('.$extension')) return FileType.code;
+  if (FileExtensions.resourceFiles.contains('.$extension')) return FileType.resource;
+  if (FileExtensions.docFiles.contains('.$extension')) return FileType.documentation;
+  
+  return FileType.resource;
+}
+
 @HiveType(typeId: 3)
 enum FileStatus {
-  @HiveField(0) empty('empty'),
-  @HiveField(1) editing('editing'),
-  @HiveField(2) completed('completed'),
-  @HiveField(3) error('error'),
-  @HiveField(4) loading('loading');
+  @HiveField(0) empty,
+  @HiveField(1) editing,
+  @HiveField(2) completed,
+  @HiveField(3) error,
+  @HiveField(4) loading;
 
-  const FileStatus(this.value);
-  final String value;
+  String get value {
+    switch (this) {
+      case FileStatus.empty:
+        return 'empty';
+      case FileStatus.editing:
+        return 'editing';
+      case FileStatus.completed:
+        return 'completed';
+      case FileStatus.error:
+        return 'error';
+      case FileStatus.loading:
+        return 'loading';
+    }
+  }
   
   Color get color {
     switch (this) {
@@ -215,22 +213,34 @@ enum FileStatus {
   }
   
   factory FileStatus.fromString(String value) {
-    return FileStatus.values.firstWhere(
-      (status) => status.value == value.toLowerCase(),
-      orElse: () => FileStatus.empty,
-    );
+    for (final status in FileStatus.values) {
+      if (status.value == value.toLowerCase()) {
+        return status;
+      }
+    }
+    return FileStatus.empty;
   }
 }
 
 @HiveType(typeId: 4)
 enum FileType {
-  @HiveField(0) config('config'),
-  @HiveField(1) code('code'),
-  @HiveField(2) resource('resource'),
-  @HiveField(3) documentation('documentation');
+  @HiveField(0) config,
+  @HiveField(1) code,
+  @HiveField(2) resource,
+  @HiveField(3) documentation;
 
-  const FileType(this.value);
-  final String value;
+  String get value {
+    switch (this) {
+      case FileType.config:
+        return 'config';
+      case FileType.code:
+        return 'code';
+      case FileType.resource:
+        return 'resource';
+      case FileType.documentation:
+        return 'documentation';
+    }
+  }
   
   Color get color {
     switch (this) {
@@ -259,9 +269,11 @@ enum FileType {
   }
   
   factory FileType.fromString(String value) {
-    return FileType.values.firstWhere(
-      (type) => type.value == value.toLowerCase(),
-      orElse: () => FileType.code,
-    );
+    for (final type in FileType.values) {
+      if (type.value == value.toLowerCase()) {
+        return type;
+      }
+    }
+    return FileType.code;
   }
 }
