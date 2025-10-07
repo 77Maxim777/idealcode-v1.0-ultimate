@@ -52,7 +52,9 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                     transformationController: _transformationController,
                     onInteractionEnd: (details) {
                       if (details.velocity.pixelsPerSecond.distance > 0) {
-                        _scale = 1; // сброс масштаба на выходе
+                        setState(() {
+                          _scale = 1.0; // сброс масштаба на выходе
+                        });
                       }
                     },
                     child: Container(
@@ -60,7 +62,10 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                       width: double.infinity,
                       height: double.infinity,
                       child: CustomPaint(
-                        painter: ConnectionLinePainter(files: project.files),
+                        painter: ConnectionLinePainter(
+                          files: project.files,
+                          scale: _scale,
+                        ),
                         child: Stack(
                           children: project.files.map((file) {
                             return CanvasItemWidget(
@@ -77,6 +82,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
                     ),
                   ),
                   // Дополнительные UI элементы, если нужно
+                  _buildScaleIndicator(),
                 ],
               );
             },
@@ -111,7 +117,7 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.dashboard_customize, size: 96, color: Colors.grey),
+            Icon(Icons.dashboard_customize, size: 96, color: Colors.grey[300]),
             const SizedBox(height: 24),
             Text('Welcome to Your Canvas!', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 8),
@@ -126,6 +132,24 @@ class _CanvasScreenState extends ConsumerState<CanvasScreen> {
               child: const Text('Import PTZ'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScaleIndicator() {
+    return Positioned(
+      bottom: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'Scale: ${_scale.toStringAsFixed(1)}x',
+          style: const TextStyle(color: Colors.white),
         ),
       ),
     );
