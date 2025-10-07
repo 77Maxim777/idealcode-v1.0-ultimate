@@ -1,11 +1,61 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/constants/app_constants.dart';
 
 part 'project_file_model.freezed.dart';
 part 'project_file_model.g.dart';
+
+// Внешние функции для вычисляемых свойств
+String _getDisplayName(ProjectFile file) => file.name ?? file.path.split('/').last;
+
+String _getExtension(ProjectFile file) => file.path.split('.').last.toLowerCase();
+
+bool _getIsEmpty(ProjectFile file) => file.content.trim().isEmpty;
+
+bool _getIsConfig(ProjectFile file) => 
+    FileExtensions.configFiles.contains('.${_getExtension(file)}');
+
+bool _getIsCode(ProjectFile file) => 
+    FileExtensions.codeFiles.contains('.${_getExtension(file)}');
+
+bool _getIsResource(ProjectFile file) => 
+    FileExtensions.resourceFiles.contains('.${_getExtension(file)}');
+
+bool _getIsDocumentation(ProjectFile file) => 
+    FileExtensions.docFiles.contains('.${_getExtension(file)}');
+
+String _getFormattedSize(ProjectFile file) {
+  final size = file.size;
+  if (size == 0) return '0 B';
+  if (size < 1024) return '${size} B';
+  if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
+  return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+String _getFormattedDate(ProjectFile file) => 
+    DateFormat('MMM dd HH:mm').format(file.lastModified);
+
+String _getDisplayPath(ProjectFile file) {
+  final path = file.path;
+  if (path.length > 30) {
+    return '${path.substring(0, 15)}...${path.substring(path.length - 15)}';
+  }
+  return path;
+}
+
+FileType _getTypeFromPath(String path) {
+  final extension = path.split('.').last.toLowerCase();
+  
+  if (FileExtensions.configFiles.contains('.$extension')) return FileType.config;
+  if (FileExtensions.codeFiles.contains('.$extension')) return FileType.code;
+  if (FileExtensions.resourceFiles.contains('.$extension')) return FileType.resource;
+  if (FileExtensions.docFiles.contains('.$extension')) return FileType.documentation;
+  
+  return FileType.resource;
+}
 
 @freezed
 class ProjectFile with _$ProjectFile {
@@ -54,37 +104,6 @@ class ProjectFile with _$ProjectFile {
 
   factory ProjectFile.fromJson(Map<String, dynamic> json) => _$ProjectFileFromJson(json);
   
-  // Computed properties
-  String get displayName => name ?? path.split('/').last;
-  
-  String get extension => path.split('.').last.toLowerCase();
-  
-  bool get isEmpty => content.trim().isEmpty;
-  
-  bool get isConfig => FileExtensions.configFiles.contains('.$extension');
-  
-  bool get isCode => FileExtensions.codeFiles.contains('.$extension');
-  
-  bool get isResource => FileExtensions.resourceFiles.contains('.$extension');
-  
-  bool get isDocumentation => FileExtensions.docFiles.contains('.$extension');
-  
-  String get formattedSize {
-    if (size == 0) return '0 B';
-    if (size < 1024) return '${size} B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-  
-  String get formattedDate => DateFormat('MMM dd HH:mm').format(lastModified);
-  
-  String get displayPath {
-    if (path.length > 30) {
-      return '${path.substring(0, 15)}...${path.substring(path.length - 15)}';
-    }
-    return path;
-  }
-  
   // Factory constructors
   factory ProjectFile.empty(String path) {
     final id = '${DateTime.now().millisecondsSinceEpoch}_$path';
@@ -110,8 +129,21 @@ class ProjectFile with _$ProjectFile {
     }
     return file;
   }
+}
+
+// Extension для методов
+extension ProjectFileExtension on ProjectFile {
+  String get displayName => _getDisplayName(this);
+  String get extension => _getExtension(this);
+  bool get isEmpty => _getIsEmpty(this);
+  bool get isConfig => _getIsConfig(this);
+  bool get isCode => _getIsCode(this);
+  bool get isResource => _getIsResource(this);
+  bool get isDocumentation => _getIsDocumentation(this);
+  String get formattedSize => _getFormattedSize(this);
+  String get formattedDate => _getFormattedDate(this);
+  String get displayPath => _getDisplayPath(this);
   
-  // Methods
   ProjectFile updateContent(String newContent) {
     return copyWith(
       content: newContent,
@@ -139,17 +171,6 @@ class ProjectFile with _$ProjectFile {
   bool hasDependency(String dependencyId) {
     return dependencies.contains(dependencyId);
   }
-  
-  static FileType _getTypeFromPath(String path) {
-    final extension = path.split('.').last.toLowerCase();
-    
-    if (FileExtensions.configFiles.contains('.$extension')) return FileType.config;
-    if (FileExtensions.codeFiles.contains('.$extension')) return FileType.code;
-    if (FileExtensions.resourceFiles.contains('.$extension')) return FileType.resource;
-    if (FileExtensions.docFiles.contains('.$extension')) return FileType.documentation;
-    
-    return FileType.resource;
-  }
 }
 
 @HiveType(typeId: 3)
@@ -164,23 +185,33 @@ enum FileStatus {
   final String value;
   
   Color get color {
-    return switch (this) {
-      FileStatus.empty => Colors.grey,
-      FileStatus.editing => Colors.orange,
-      FileStatus.completed => Colors.green,
-      FileStatus.error => Colors.red,
-      FileStatus.loading => Colors.blue,
-    };
+    switch (this) {
+      case FileStatus.empty:
+        return Colors.grey;
+      case FileStatus.editing:
+        return Colors.orange;
+      case FileStatus.completed:
+        return Colors.green;
+      case FileStatus.error:
+        return Colors.red;
+      case FileStatus.loading:
+        return Colors.blue;
+    }
   }
   
   IconData get icon {
-    return switch (this) {
-      FileStatus.empty => Icons.radio_button_unchecked,
-      FileStatus.editing => Icons.edit,
-      FileStatus.completed => Icons.check_circle,
-      FileStatus.error => Icons.error,
-      FileStatus.loading => Icons.hourglass_empty,
-    };
+    switch (this) {
+      case FileStatus.empty:
+        return Icons.radio_button_unchecked;
+      case FileStatus.editing:
+        return Icons.edit;
+      case FileStatus.completed:
+        return Icons.check_circle;
+      case FileStatus.error:
+        return Icons.error;
+      case FileStatus.loading:
+        return Icons.hourglass_empty;
+    }
   }
   
   factory FileStatus.fromString(String value) {
@@ -202,21 +233,29 @@ enum FileType {
   final String value;
   
   Color get color {
-    return switch (this) {
-      FileType.config => Colors.blue,
-      FileType.code => Colors.green,
-      FileType.resource => Colors.orange,
-      FileType.documentation => Colors.purple,
-    };
+    switch (this) {
+      case FileType.config:
+        return Colors.blue;
+      case FileType.code:
+        return Colors.green;
+      case FileType.resource:
+        return Colors.orange;
+      case FileType.documentation:
+        return Colors.purple;
+    }
   }
   
   IconData get icon {
-    return switch (this) {
-      FileType.config => Icons.settings,
-      FileType.code => Icons.code,
-      FileType.resource => Icons.image,
-      FileType.documentation => Icons.description,
-    };
+    switch (this) {
+      case FileType.config:
+        return Icons.settings;
+      case FileType.code:
+        return Icons.code;
+      case FileType.resource:
+        return Icons.image;
+      case FileType.documentation:
+        return Icons.description;
+    }
   }
   
   factory FileType.fromString(String value) {
